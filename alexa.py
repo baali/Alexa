@@ -174,8 +174,8 @@ class Alexa:
         logger.debug("Processing Request Response...")
 
         if response.status_code == 200:
-            data = "Content-Type: " + response.headers['content-type'] + '\r\n\r\n' + response.content
-            msg = email.message_from_string(data)
+            data = b"Content-Type: " + response.headers['content-type'].encode('utf-8') + b'\r\n\r\n' + response.content
+            msg = email.message_from_bytes(data)
             for payload in msg.get_payload():
                 if payload.get_content_type() == "application/json":
                     j = json.loads(payload.get_payload())
@@ -184,7 +184,7 @@ class Alexa:
                     logger.debug('Play ' + payload.get('Content-ID').strip("<>"))
 
                     p = subprocess.Popen(mp3_player, stdin=subprocess.PIPE, shell=True)
-                    p.stdin.write(payload.get_payload())
+                    p.stdin.write(payload.get_payload().encode('utf-8'))
                     p.stdin.close()
                     p.wait()
                 else:
