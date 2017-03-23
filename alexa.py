@@ -183,8 +183,11 @@ class Alexa:
                 elif payload.get_content_type() == "audio/mpeg":
                     logger.debug('Play ' + payload.get('Content-ID').strip("<>"))
 
+                    f = open(payload.get('Content-ID').strip("<>")+'.wav', 'wb')
+                    f.write(payload.get_payload(decode=True))
+                    f.close()
                     p = subprocess.Popen(mp3_player, stdin=subprocess.PIPE, shell=True)
-                    p.stdin.write(payload.get_payload().encode('utf-8'))
+                    p.stdin.write(payload.get_payload(decode=True))
                     p.stdin.close()
                     p.wait()
                 else:
