@@ -92,24 +92,25 @@ class Alexa:
             }
         }
 
-        yield chunk + json.dumps(d) + '\r\n'
+        yield (chunk + json.dumps(d) + '\r\n').encode()
 
-        chunk = '--%s\r\n' % boundary
+        chunk = ('--%s\r\n' % boundary).encode()
         chunk += (
             'Content-Disposition: form-data; name="audio"\r\n'
             'Content-Type: audio/L16; rate=16000; channels=1\r\n\r\n'
         )
 
-        yield chunk
+        yield chunk.encode()
 
         for a in audio:
             yield a
 
-        yield '--%s--\r\n' % boundary
+        yield ('--%s--\r\n' % boundary).encode()
         logger.debug('Finished sending speech to Alexa Voice Service')
 
     @staticmethod
     def pack(audio, boundary):
+        print('Start sending speech to Alexa Voice Service')
         logger.debug('Start sending speech to Alexa Voice Service')
         body = '--%s\r\n' % boundary
         body += (
