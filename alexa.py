@@ -19,8 +19,8 @@ logger = logging.getLogger(__file__)
 if platform.machine() == 'mips':
     mp3_player = 'madplay -o wave:- - | aplay -M'
 else:
-    mp3_player = 'ffplay -autoexit -nodisp -loglevel quiet -'
-
+    # mp3_player = 'ffplay -autoexit -nodisp -loglevel quiet -'
+    mp3_player = 'mplayer -'
 
 class Alexa:
     """
