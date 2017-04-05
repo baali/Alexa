@@ -12,6 +12,13 @@ from monotonic import monotonic
 from respeaker import Microphone
 
 from creds import Client_ID, Client_Secret, refresh_token
+from respeaker.vad import vad
+import time
+
+import contextlib
+import wave
+from gpiozero import LED, Button
+from signal import pause
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__file__)
@@ -66,6 +73,7 @@ class Alexa:
         Returns:
 
         """
+        start_time = time.time()
         logger.debug('Start sending speech to Alexa Voice Service')
         chunk = '--%s\r\n' % boundary
         chunk += (
@@ -94,7 +102,7 @@ class Alexa:
 
         yield (chunk + json.dumps(d) + '\r\n').encode()
 
-        chunk = ('--%s\r\n' % boundary).encode()
+        chunk = '--%s\r\n' % boundary
         chunk += (
             'Content-Disposition: form-data; name="audio"\r\n'
             'Content-Type: audio/L16; rate=16000; channels=1\r\n\r\n'
@@ -102,10 +110,17 @@ class Alexa:
 
         yield chunk.encode()
 
-        for a in audio:
-            yield a
+        with contextlib.closing(wave.open('recording.wav', 'wb')) as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            for a in audio:
+                wf.writeframes(a)
+                yield a
 
         yield ('--%s--\r\n' % boundary).encode()
+        print("Finished sending data to AVS")
+        print("Time spent recording audio: " +  str(time.time() - start_time))
         logger.debug('Finished sending speech to Alexa Voice Service')
 
     @staticmethod
@@ -151,7 +166,9 @@ class Alexa:
 
         return body
 
-    def recognize(self, audio):
+    def recognize(self):
+        print('Button pressed!')
+        audio = self.mic.listen(duration=3)
         url = 'https://access-alexa-na.amazon.com/v1/avs/speechrecognizer/recognize'
         boundary = 'this-is-a-boundary'
         if isinstance(audio, types.GeneratorType):
@@ -168,11 +185,15 @@ class Alexa:
             }
             data = self.pack(audio, boundary)
 
+        start_time = time.time()
         r = self.session.post(url, headers=headers, data=data, timeout=20)
+        response_waiting_time = time.time() - start_time
+        print("Time Alexa request took: " +  str(response_waiting_time))
         self.process_response(r)
 
     def process_response(self, response):
         logger.debug("Processing Request Response...")
+        print("Processing Request Response...")
 
         if response.status_code == 200:
             data = b"Content-Type: " + response.headers['content-type'].encode('utf-8') + b'\r\n\r\n' + response.content
@@ -202,6 +223,7 @@ class Alexa:
                 for directive in j['messageBody']['directives']:
                     if directive['namespace'] == 'SpeechSynthesizer':
                         if directive['name'] == 'speak':
+                            print("SpeechSynthesizer audio: " + directive['payload']['audioContent'].lstrip('cid:'))
                             logger.debug(
                                 "SpeechSynthesizer audio: " + directive['payload']['audioContent'].lstrip('cid:'))
                     elif directive['namespace'] == 'SpeechRecognizer':
@@ -245,19 +267,11 @@ def main():
         quit_event.set()
 
     signal.signal(signal.SIGINT, on_quit)
-
-    while not quit_event.is_set():
-        if mic.wakeup(keyword='alexa'):
-            logging.debug('wakeup')
-            data = mic.listen()
-            try:
-                alexa.recognize(data)
-            except Exception as e:
-                logging.warn(e.message)
-
+    right_button = Button(3)
+    right_button.when_pressed = alexa.recognize
+    pause()
     mic.close()
     logging.debug('Mission completed')
-
 
 if __name__ == '__main__':
     main()
