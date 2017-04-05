@@ -3,3 +3,4 @@ CherryPy>=4.0.0
 webrtcvad
 pocketsphinx
 respeaker>=0.4.0
+gpiozero==1.3.2
